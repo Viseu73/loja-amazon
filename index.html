@@ -127,8 +127,8 @@ function esc(s){ return s ? String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<'
 /* ---------- RENDER CARDS ---------- */
 function renderDestaqueCard(p){
   // compact small card
-  const preco = toNumber(p['preço']);
-  const promo = toNumber(p['promoção']);
+  const preco = toNumber(p['preco']);
+  const promo = toNumber(p['promocao']);
   const isPromo = promo && preco && promo < preco;
   const discount = isPromo ? Math.round((1 - promo / preco) * 100) : 0;
   const img = p['imagem'] || 'https://via.placeholder.com/300x200?text=Sem+imagem';
@@ -150,13 +150,13 @@ function renderDestaqueCard(p){
 }
 
 function renderGridCard(p){
-  const preco = toNumber(p['preço']);
-  const promo = toNumber(p['promoção']);
+  const preco = toNumber(p['preco']);
+  const promo = toNumber(p['promocao']);
   const isPromo = promo && preco && promo < preco;
   const discount = isPromo ? Math.round((1 - promo / preco) * 100) : 0;
   const img = p['imagem'] || 'https://via.placeholder.com/400x300?text=Sem+imagem';
   const link = p['link'] || '#';
-  const title = p['título'] || '';
+  const title = p['titulo'] || '';
   return `
     <article class="bg-white rounded-2xl p-4 card flex flex-col">
       <div class="relative overflow-hidden rounded-lg">
@@ -212,7 +212,7 @@ function renderPage(){
   const cat = document.getElementById('categoryFilter').value;
   let filtered = PRODUCTS.filter(p => {
     const inCat = !cat || (p['categoria'] && p['categoria'].toLowerCase() === cat.toLowerCase());
-    const inQ = !q || (p['título'] && p['título'].toLowerCase().includes(q));
+    const inQ = !q || (p['titulo'] && p['título'].toLowerCase().includes(q));
     // exclude destaque items from main grid
     const isD = p['destaque'] && String(p['destaque']).toLowerCase()==='sim';
     return inCat && inQ && !isD;
@@ -220,10 +220,10 @@ function renderPage(){
 
   // sort: promos first
   filtered.sort((a,b)=>{
-    const aPromo = toNumber(a['promoção']) || null;
-    const aPrice = toNumber(a['preço']) || 0;
-    const bPromo = toNumber(b['promoção']) || null;
-    const bPrice = toNumber(b['preço']) || 0;
+    const aPromo = toNumber(a['promocao']) || null;
+    const aPrice = toNumber(a['preco']) || 0;
+    const bPromo = toNumber(b['promocao']) || null;
+    const bPrice = toNumber(b['preco']) || 0;
     const aIs = (aPromo && aPromo < aPrice) ? 1 : 0;
     const bIs = (bPromo && bPromo < bPrice) ? 1 : 0;
     return bIs - aIs;
@@ -260,11 +260,11 @@ async function loadProducts(){
     // force no-cache param
     const res = await fetch(WEB_APP_URL + '?_=' + Date.now());
     const data = await res.json();
-    // Expected columns in the sheet exactly: título, imagem, preço, promoção, link, categoria, destaque
+    // Expected columns in the sheet exactly: titulo, imagem, preco, promoaoo, link, categoria, destaque
     PRODUCTS = (data || []).map(r => ({
-      'título': r['título'] || r['title'] || '',
+      'título': r['titulo'] || r['title'] || '',
       'imagem': r['imagem'] || r['image'] || '',
-      'preço': r['preço'] || r['price'] || '',
+      'preço': r['preco'] || r['price'] || '',
       'promoção': r['promoção'] || r['promo_price'] || r['promocao'] || '',
       'link': r['link'] || r['affiliate_link'] || '',
       'categoria': r['categoria'] || r['category'] || '',
