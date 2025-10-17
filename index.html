@@ -6,11 +6,10 @@
   <title>Loja - Afiliados Amazon</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   <style>
-    /* Pequenas customizações */
     .product-card { transition: transform .12s ease, box-shadow .12s ease; }
     .product-card:hover { transform: translateY(-6px); box-shadow: 0 8px 28px rgba(0,0,0,.12); }
     .destaque-card { transition: transform .12s ease, box-shadow .12s ease; }
-    .destaque-card:hover { transform: translateY(-4px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+    .destaque-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -34,10 +33,10 @@
 </header>
 
 <main class="max-w-6xl mx-auto px-4 py-8">
-  <!-- Secção de produtos em destaque -->
+  <!-- Secção de produtos em destaque (bem compactos) -->
   <section id="destaque" class="mb-6">
-    <h2 class="text-xl font-semibold mb-3">Destaques</h2>
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4"></div>
+    <h2 class="text-lg font-semibold mb-3">Destaques</h2>
+    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3"></div>
   </section>
 
   <!-- Grid normal -->
@@ -100,16 +99,16 @@ function renderCardDestaque(p) {
   const img = p.imagem || 'https://via.placeholder.com/300x200?text=Sem+imagem';
   const link = p.link || '#';
   return `
-    <article class="bg-white rounded-xl p-3 text-sm destaque-card">
-      <div class="relative overflow-hidden rounded-lg">
-        <img loading="lazy" src="${img}" alt="${escapeHtml(p.titulo)}" class="w-full h-32 object-cover"/>
+    <article class="bg-white rounded-lg p-2 text-xs destaque-card">
+      <div class="relative overflow-hidden rounded-md">
+        <img loading="lazy" src="${img}" alt="${escapeHtml(p.titulo)}" class="w-full h-24 object-cover"/>
         ${promo ? `<div class="absolute top-1 left-1 bg-red-500 text-white px-1 py-0.5 rounded-md text-xs font-bold">-${discount}%</div>` : ''}
       </div>
-      <h3 class="mt-2 font-semibold">${escapeHtml(p.titulo)}</h3>
+      <h3 class="mt-1 font-semibold text-xs">${escapeHtml(p.titulo)}</h3>
       <div class="mt-1">
-        ${promo ? `<div class="text-gray-500 line-through text-xs">${price}</div><div class="font-bold text-sm">${promo}</div>` : `<div class="font-bold text-sm">${price}</div>`}
+        ${promo ? `<div class="text-gray-500 line-through text-xs">${price}</div><div class="font-bold text-xs">${promo}</div>` : `<div class="font-bold text-xs">${price}</div>`}
       </div>
-      <a href="${link}" target="_blank" class="mt-1 inline-block px-2 py-1 bg-yellow-400 text-xs rounded">Ver oferta</a>
+      <a href="${link}" target="_blank" class="mt-1 inline-block px-1 py-0.5 bg-yellow-400 text-xs rounded">Ver oferta</a>
     </article>
   `;
 }
@@ -158,35 +157,33 @@ function applyFiltersAndRender() {
   document.getElementById('grid').innerHTML = pageItems.map(renderCard).join('\n');
 }
 
-// ---------------- DESTAQUE ----------------
-function renderDestaque() {
-  const destaque = PRODUCTS.filter(p => p.destaque && p.destaque.toLowerCase()==='sim');
-  document.querySelector('#destaque div').innerHTML = destaque.map(renderCardDestaque).join('\n');
+// ---------------- DESTAQUES ----------------
+function renderDestaques() {
+  const destaqueDiv = document.querySelector('#destaque div');
+  const destaques = PRODUCTS.filter(p=>p.destaque && p.destaque.toLowerCase()==='sim');
+  destaqueDiv.innerHTML = destaques.map(renderCardDestaque).join('\n');
 }
 
 // ---------------- CARREGAMENTO ----------------
-async function loadSheet() {
+async function loadProducts() {
   try {
     const res = await fetch(WEB_APP_URL);
     const data = await res.json();
-
-    PRODUCTS = data.map(r => ({
-      titulo: r.titulo || '',
-      imagem: r.imagem || '',
-      price: toNumber(r.preco),
-      promo_price: toNumber(r.promocao),
-      link: r.link || '',
-      categoria: r.categoria || '',
-      destaque: r.destaque || ''
+    PRODUCTS = data.map(p=>({
+      titulo: p.titulo || '',
+      imagem: p.imagem || '',
+      price: toNumber(p.preco),
+      promo_price: toNumber(p.promocao),
+      link: p.link || '',
+      categoria: p.categoria || '',
+      destaque: p.destaque || ''
     }));
-
     populateCategories();
-    renderDestaque();
+    renderDestaques();
     applyFiltersAndRender();
-
   } catch(e) {
     console.error(e);
-    alert('Erro ao carregar a Google Sheet. Verifica o Web App.');
+    alert('Erro ao carregar os produtos. Verifica o Web App do Google Sheets.');
   }
 }
 
@@ -194,16 +191,16 @@ function populateCategories() {
   const set = new Set();
   PRODUCTS.forEach(p=>{ if(p.categoria) set.add(p.categoria.trim()); });
   const sel = document.getElementById('categoryFilter');
-  set.forEach(c=>{ const opt = document.createElement('option'); opt.value=c; opt.textContent=c; sel.appendChild(opt); });
+  set.forEach(c=>{ const opt=document.createElement('option'); opt.value=c; opt.textContent=c; sel.appendChild(opt); });
 }
 
 // ---------------- EVENTOS ----------------
-document.getElementById('search').addEventListener('input', ()=>{currentPage=1; applyFiltersAndRender();});
-document.getElementById('categoryFilter').addEventListener('change', ()=>{currentPage=1; applyFiltersAndRender();});
-document.getElementById('sortSelect').addEventListener('change', ()=>{currentPage=1; applyFiltersAndRender();});
+document.getElementById('search').addEventListener('input', ()=>{ currentPage=1; applyFiltersAndRender(); });
+document.getElementById('categoryFilter').addEventListener('change', ()=>{ currentPage=1; applyFiltersAndRender(); });
+document.getElementById('sortSelect').addEventListener('change', ()=>{ currentPage=1; applyFiltersAndRender(); });
 
 // ---------------- INICIALIZAÇÃO ----------------
-loadSheet();
+loadProducts();
 </script>
 </body>
 </html>
