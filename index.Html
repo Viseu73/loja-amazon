@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loja Amazon Promos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #f5f5f5; }
+    .line-through { text-decoration: line-through; }
+    .pagination button { min-width: 36px; }
+    #promoSlider { display: flex; overflow-x: auto; gap: 1rem; padding: 1rem 0; scroll-behavior: smooth; }
+    #promoSlider::-webkit-scrollbar { display: none; }
+    .product-card { transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: pointer; }
+    .product-card:hover { transform: translateY(-6px); box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+    .product-card img { transition: transform 0.2s ease; }
+    .product-card:hover img { transform: scale(1.05); }
+  </style>
+</head>
+<body class="font-sans text-gray-800">
+
+  <!-- Header -->
+  <header class="bg-white shadow-md py-4 px-6 flex flex-col md:flex-row justify-between items-center">
+    <div class="flex items-center gap-4 mb-3 md:mb-0">
+      <img src="logox.png" alt="Logo" class="h-14 w-auto">
+      <h1 class="text-2xl font-bold text-indigo-600">Loja Amazon Promoções</h1>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+      <input id="search" type="text" placeholder="Pesquisar produtos..." class="border p-2 rounded w-full sm:w-64 focus:ring-2 focus:ring-indigo-400 focus:outline-none"/>
+      <select id="categoryFilter" class="border p-2 rounded w-full sm:w-48 focus:ring-2 focus:ring-indigo-400 focus:outline-none">
+        <option value="">Todas as categorias</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Slider de promoções -->
+  <section class="bg-indigo-50 p-6">
+    <h2 class="text-xl font-semibold mb-4 text-indigo-700">Ofertas em destaque</h2>
+    <div id="promoSlider"></div>
+  </section>
+
+  <!-- Produtos -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <div id="products" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    <div id="pagination" class="pagination mt-8 flex justify-center gap-2"></div>
+    <p id="error" class="text-red-500 mt-4 hidden"></p>
+  </main>
+
+  <script>
+    const url = "https://script.google.com/macros/s/AKfycbzX7nYrpzC9QEXk-rMxzu6WTPG0Ox9tKj33v-mwWI6vC0gxcXki7k_uhs7dc4LvdCrs6Q/exec";
+    const PAGE_SIZE = 12;
+
+    let PRODUCTS = [];
+    let currentPage = 1;
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(url + '?_=' + new Date().getTime());
+        const products = await res.json();
+        PRODUCTS = products;
+        populateCategories();
+        renderPromoSlider();
+        renderPage();
+      } catch(err) {
+        console.error(err);
+        const error = document.getElementById("error");
+        error.textContent = "Erro ao carregar a Google Sheet. Verifica se o Web App está publicado e acessível.";
+        error.classList.remove("hidden");
+      }
+    }
+
+    function populateCategories() {
+      const set = new Set();
+      PRODUCTS.forEach(p => { if(p.categoria) set.add(p.categoria.trim()); });
+      const select = document.getElementById("categoryFilter");
+      set.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        select.appendChild(opt);
+      });
+    }
+
+    function createCard(p) {
+      const title = p.título || "Produto";
+      const image = p.imagem || "https://via.placeholder.com/300x300?text=Sem+Imagem";
+      const price = parseFloat((p.preço||0).toString().replace(',', '.'));
+      const promo = parseFloat((p.promoção||0).toString().replace(',', '.'));
+      const category = p.categoria || "";
+      const link = p.link || "#";
+      const discount = promo && price && promo<price ? Math.round((price-promo)/price*100) : 0;
+
+      const card = document.createElement("div");
+      card.className = "product-card bg-white rounded-2xl shadow p-4 flex flex-col";
+      card.innerHTML = `
+        <img src="${image}" alt="${title}" class="rounded mb-3 w-full h-48 object-cover"/>
+        <h2 class="font-semibold mb-1 text-lg">${title}</h2>
+        <p class="text-sm text-gray-500 mb-2">${category}</p>
+        ${promo && promo<price
+          ? `<p class="text-red-500 font-bold">${promo.toFixed(2)} €
+             <span class="text-gray-400 line-through text-sm ml-2">${price.toFixed(2)} €</span>
+             <span class="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">-${discount}%</span></p>`
+          : `<p class="text-gray-800 font-semibold">${price ? price.toFixed(2)+' €' : ''}</p>`}
+        ${link
+          ? `<a href="${link}" target="_blank" 
+               class="mt-auto inline-block bg-indigo-600 text-white text-center py-2 px-3 rounded hover:bg-indigo-700 transition">
+               Ver na Amazon
+             </a>`
+          : `<p class="mt-auto text-sm text-gray-400 italic">Link indisponível</p>`}
+      `;
+      return card;
+    }
+
+    function getFilteredProducts() {
+      const term = document.getElementById("search").value.toLowerCase();
+      const cat = document.getElementById("categoryFilter").value;
+      const filtered = PRODUCTS.filter(p=>{
+        const matchesTerm = (p.título||"").toLowerCase().includes(term);
+        const matchesCat = !cat || (p.categoria||"").trim()===cat;
+        return matchesTerm && matchesCat;
+      });
+      filtered.sort((a,b)=>{
+        const aPromo = parseFloat((a.promoção||0).toString().replace(',', '.'));
+        const aPrice = parseFloat((a.preço||0).toString().replace(',', '.'));
+        const bPromo = parseFloat((b.promoção||0).toString().replace(',', '.'));
+        const bPrice = parseFloat((b.preço||0).toString().replace(',', '.'));
+        const aDiscount = aPromo && aPromo<aPrice ? 1 : 0;
+        const bDiscount = bPromo && bPromo<bPrice ? 1 : 0;
+        return bDiscount - aDiscount;
+      });
+      return filtered;
+    }
+
+    function renderPage() {
+      const filtered = getFilteredProducts();
+      const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+      currentPage = Math.min(currentPage, totalPages) || 1;
+
+      const start = (currentPage-1)*PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      renderProducts(filtered.slice(start, end));
+      renderPagination(totalPages);
+    }
+
+    function renderProducts(list) {
+      const container = document.getElementById("products");
+      container.innerHTML = "";
+      list.forEach(p => container.appendChild(createCard(p)));
+    }
+
+    function renderPagination(totalPages) {
+      const container = document.getElementById("pagination");
+      container.innerHTML = "";
+      if(totalPages <= 1) return;
+
+      if(currentPage>1) {
+        const prev = document.createElement("button");
+        prev.textContent = "«";
+        prev.className = "px-3 py-1 bg-white border rounded";
+        prev.onclick = ()=>{ currentPage--; renderPage(); };
+        container.appendChild(prev);
+      }
+
+      for(let i=1;i<=totalPages;i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.className = `px-3 py-1 border rounded ${i===currentPage? 'bg-indigo-600 text-white':'bg-white'}`;
+        btn.onclick = ()=>{ currentPage=i; renderPage(); };
+        container.appendChild(btn);
+      }
+
+      if(currentPage<totalPages) {
+        const next = document.createElement("button");
+        next.textContent = "»";
+        next.className = "px-3 py-1 bg-white border rounded";
+        next.onclick = ()=>{ currentPage++; renderPage(); };
+        container.appendChild(next);
+      }
+    }
+
+    function renderPromoSlider() {
+      const slider = document.getElementById("promoSlider");
+      slider.innerHTML = "";
+      const promos = PRODUCTS.filter(p=>{
+        const price = parseFloat((p.preço||0).toString().replace(',', '.'));
+        const promo = parseFloat((p.promoção||0).toString().replace(',', '.'));
+        return promo && price && promo<price;
+      });
+      promos.forEach(p=>{
+        const div = document.createElement("div");
+        div.className = "bg-white shadow rounded-lg flex-none w-52 p-3 hover:scale-105 transition cursor-pointer";
+        div.innerHTML = `
+          <img src="${p.imagem || 'https://via.placeholder.com/200x150'}" class="w-full h-36 object-cover rounded mb-2"/>
+          <p class="text-sm font-semibold">${p.título}</p>
+          <p class="text-red-500 font-bold">${parseFloat(p.promoção).toFixed(2)} € 
+             <span class="line-through text-gray-400 text-xs">${parseFloat(p.preço).toFixed(2)} €</span></p>
+        `;
+        div.onclick = ()=>{ window.open(p.link || "#", "_blank"); };
+        slider.appendChild(div);
+      });
+    }
+
+    document.getElementById("search").addEventListener("input", ()=>{ currentPage=1; renderPage(); });
+    document.getElementById("categoryFilter").addEventListener("change", ()=>{ currentPage=1; renderPage(); });
+
+    loadProducts();
+  </script>
+</body>
+</html>
